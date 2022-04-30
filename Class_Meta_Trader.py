@@ -29,6 +29,10 @@ step = [6 / 10000, 10 / 10000, 20 / 10000, 30 / 10000, 34 / 10000, 45 / 10000,
         56 / 10000]  # 10/ - кол-во пунктов (10 pips)
 Multiplier = 1.5  # множитель лота
 
+# -- > логирование ошибок/нужной информации в определенные файлы < -- #
+logger.add("config_files//logs//errors.log", format="{time} {level} {message}", rotation="10:00", retention="4 days",
+           level="ERROR", compression="zip", enqueue=True)
+
 
 class Meta_Trader():
     "Класс для работы с торговым терминалом и данными: Класс Meta_Trader login и password, server\
@@ -3325,7 +3329,7 @@ def read_json_file(filename: str):
     функция для чтения файлов json и возврата соотвествующего json в виде словаря
     """
     if not os.path.isfile(filename):
-        logger.info(f"файл не сушествует по пути: {filename}")
+        logger.error(f"файл не сушествует по пути: {filename}")
         return None
     else:
         with open(filename) as f:
