@@ -4,6 +4,7 @@ import datetime
 from datetime import datetime
 from loguru import logger
 import os
+import sys
 
 
 async def async_func():
@@ -39,4 +40,4 @@ if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main())
     except:
-        pass
+        sys.exit()

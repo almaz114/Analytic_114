@@ -2768,231 +2768,6 @@ class Meta_Trader():
         return result
 
 
-class Global_Server():
-    """Класс для работы сайтом по его ip адресу и порту """
-
-    def __init__(self, ip_adress: str, port: int):
-        self.ip_adress = ip_adress
-        self.port = port
-        # self.username = username    
-
-    def connect(self, name_table: str):
-        """метод для подключения по указанному ip_adress 
-        name_table - имя адреса после его ip_adres --> 'http://80.85.158.162/name_table/'"""
-        # response = requests.get('http://80.85.158.162/name_table/')  # ip put
-        response = requests.get(self.ip_adress + name_table)  # ip put
-        response.encoding = 'utf-8'
-        if response.status_code == 200:  # if connection its ok
-            status_code = 200
-            print(f"response: {type(response)}, response= {response}")
-            print(f"Соединение с глобальным сервером {self.ip_adress + name_table} успешно")
-            return status_code
-        elif response.status_code != 200:
-            print(f"Не смогли подключится к глобальному сервероу {self.ip_adress + name_table}")
-            print(f"response: {type(response)}, response= {response}")
-
-    def connect_and_save(self, name_table: str, list_path: list):
-        """метод для подключения по указанному ip_adress
-        name_table - имя адреса после его ip_adres --> 'http://80.85.158.162/name_table/'
-        и сохранения полученных данных с сайта/html страницы в соответсвующий файл json
-        для каждого алгоритма в его файл конфигурации
-        """
-
-        response = requests.get(self.ip_adress + name_table)  # ip put
-        response.encoding = 'utf-8'
-        if response.status_code == 200:  # if connection its ok
-            status_code = 200
-            print(f"response: {type(response)}, response= {response}")
-            print(f"Соединение с глобальным сервером {self.ip_adress + name_table} успешно")
-
-            # --> функция перебора путей локальных файлов для last_data_update в заданном списке
-            for name_file in list_path:
-
-                # 1 -- ишем по hedge_martin
-                result_for_hedge = re.search(r'hedge_martin', name_file)  # поиск по имени алгоритма
-                if result_for_hedge is None:
-                    pass
-                    # print("выражение не найдено !!!")
-                else:
-                    v = result_for_hedge.group(0)
-                    print(f"нашли выражение: {v}")
-                    with open(name_file) as f:  # открываем файл для сбора данных об last_update
-                        dict_1 = json.load(f)
-                        print(f"d : {dict_1}")
-                        last_update_hedge = dict_1["last_update"]
-                        print(f"last_update_hedge: {last_update_hedge}")
-
-                # 2 -- ишем по trade_extremum
-                result_trade_extremum = re.search(r'trade_extremum', name_file)  # поиск по имени алгоритма
-                if result_trade_extremum is None:
-                    pass
-                    # print("выражение не найдено !!!")
-                else:
-                    v_1 = result_trade_extremum.group(0)
-                    print(f"нашли выражение: {v_1}")
-                    with open(name_file) as f:  # открываем файл для сбора данных об last_update
-                        dict_2 = json.load(f)
-                        print(f"d : {dict_2}")
-                        last_update_trade_extremum = dict_2["last_update"]
-                        print(f"last_update_trade_extremum: {last_update_trade_extremum}")
-
-                # 3 -- ишем по global_levels
-                result_global_levels = re.search(r'global_levels', name_file)  # поиск по имени алгоритма
-                if result_global_levels is None:
-                    pass
-                    # print("выражение не найдено !!!")
-                else:
-                    v_1 = result_global_levels.group(0)
-                    print(f"нашли выражение: {v_1}")
-                    with open(name_file) as d:  # открываем файл для сбора данных об last_update
-                        dict_3 = json.load(d)
-                        print(f"d : {dict_3}")
-                        last_update_global_levels = dict_3["last_update"]
-                        print(f"last_update_trade_extremum: {last_update_global_levels}")
-
-            # получим данные с html страницы(таблицы на ней) с пандой
-            web_frames = pd.read_html(self.ip_adress + name_table)
-            if web_frames:
-                for i in range(len(web_frames)):  # пробегаем по всем таблицам html страницы
-                    name_algorithm = web_frames[i].Name_of_algorithm.values[0]  # get name algorithm
-
-                    # --> работаем по алгоритму Trade_Extremum
-                    if name_algorithm == "Trade_Extremum":
-                        print(f"обнаружен след алгоритм {name_algorithm} ")
-
-                        df1 = web_frames[i]  # dataframe from table of html
-                        currency = df1.currency.values[0]  # получим значение из поля currency "EURUSD"
-                        # list_keys = df1["parameter"].tolist()  # get list keys
-                        # list_values = df1["value"].tolist()  # get list of values
-                        value_last_data_1 = df1.last_data_update.values[0]  # получим значение из поля last_data_update
-                        # print(list_keys, list_values)
-
-                        # --> если дата обновления изменилась
-                        if value_last_data_1 != last_update_trade_extremum:
-                            print(
-                                f"дата обновления разные ! Старая: {last_update_trade_extremum}, а новая: {value_last_data_1}")
-                            list_values = df1["value"].tolist()  # получим все значения из столбца "value"
-                            high_level, low_level = round(list_values[0], 5), round(list_values[1],
-                                                                                    5)  # get values of level
-                            trend = int(list_values[2])
-
-                            dict_d = {"high_level": high_level, "low_level": low_level, "trend": trend,
-                                      "last_update": value_last_data_1}
-
-                            # --> сохраним новый dict в json file
-                            with open("files/trade_extremum.json", "w") as write_file:
-                                json.dump(dict_d, write_file)
-                        elif value_last_data_1 == last_update_trade_extremum:
-                            print(f"дата обновления старая {last_update_trade_extremum}")
-                    time.sleep(1)
-
-                    # --> работаем по алгоритму Hedge_Martin
-                    if name_algorithm == "Hedge_Martin":
-                        print(f"обнаружен след алгоритм {name_algorithm} ")
-                        df2 = web_frames[i]
-                        currency = df2.currency.values[0]  # получим значение из поля currency
-                        value_last_data = df2.last_data_update.values[
-                            0]  # получим значение из поля last_data_update html
-
-                        # --> если дата обновления изменилась
-                        if value_last_data != last_update_hedge:
-                            print(f"Даты обновления разные ! Старая: {last_update_hedge}, а новая: {value_last_data}")
-                            list_vals = df2["value"].tolist()  # получим все значения из столбца "value"
-                            high_level, low_level = round(list_vals[0], 5), round(list_vals[1],
-                                                                                  5)  # get values of level
-
-                            limit_order_type, stop_order_type = int(list_vals[2]), int(
-                                list_vals[3])  # for limit/stop_orders
-                            # print(f"xxx g: {limit_order_type, type(limit_order_type)}, {stop_order_type, type(stop_order_type)}")
-                            sell_stop_price, buy_stop_price = round(list_vals[4], 5), round(list_vals[5], 5)
-                            cascade_orders = int(list_vals[6])  # get cascade_orders method
-
-                            steps = list_vals[7:13]  # get list for steps
-                            rounded_steps = [round(elem, 5) for elem in steps]
-                            # print(steps)
-
-                            dict_b = {currency: {"high_level": high_level, "low_level": low_level,
-                                                 "limit_order_type": limit_order_type,
-                                                 "stop_order_type": stop_order_type,
-                                                 "sell_stop_price": sell_stop_price, "buy_stop_price": buy_stop_price,
-                                                 "steps": rounded_steps}, "cascade_orders": cascade_orders,
-                                      "last_update": value_last_data}
-
-                            # --> сохраним новый dict в json file
-                            with open("files/hedge_martin.json", "w") as write_file:
-                                json.dump(dict_b, write_file)
-                        elif value_last_data == last_update_hedge:
-                            print(f"Дата обновления старая: {value_last_data}")
-                    time.sleep(1)
-
-                    # --> работаем по алгоритму Global_levels
-                    if name_algorithm == "Global_Levels":
-                        print(f"обнаружен след алгоритм {name_algorithm} ")
-                        df3 = web_frames[i]  # get new dataframe
-                        currency = df3.currency.values[0]  # получим значение из поля currency
-                        value_last_data = df3.last_data_update.values[
-                            0]  # получим значение из поля last_data_update html
-
-                        # --> если дата обновления изменилась
-                        if value_last_data != last_update_global_levels:
-                            print(
-                                f"Даты обновления разные ! Старая: {last_update_global_levels}, а новая: {value_last_data}")
-
-                            list_column = list(df3.columns.values)  # get list of column_name
-                            list_keys_1 = list_column[2:]
-
-                            list_currency = df3["currency"].tolist()  # get currency aka EURUSD
-                            # list_values = df3.loc[[0]].values.flatten()
-                            last_update = df3.last_data_update.values[0]  # get valuе from column last_data_update
-
-                            new_list = []  # для значений будущего словаря
-                            for i in range(df3.shape[0]):  # по всем строкам
-                                list_values = df3.loc[[i]].values.flatten()  # get list values from dataframe
-                                list_values_1 = list_values[2:-1]  # get new slice list убирая лишнее
-                                for j in range(len(list_values_1)):  # все значения типа ->
-                                    if type(list_values_1[j]) == float:  # -> float будут округлены
-                                        list_values_1[j] = round(list_values_1[j], 5)
-                                        time.sleep(.5)
-
-                                dict_of_list = dict(zip(list_keys_1, list_values_1))
-                                new_list.append(dict_of_list)
-                            print(f"new list: {new_list}")
-
-                            # 1. Хотим создать/получить главный базовый словарь по всем валютам
-                            base_dict = {}
-                            for currency in list_currency:
-                                base_dict[currency] = ""
-
-                            # 2. Получаем новый значения для базового словаря
-                            base_dict["GBPUSD"] = new_list[0]
-                            base_dict["USDCAD"] = new_list[1]
-                            base_dict["AUDUSD"] = new_list[2]
-                            base_dict["NZDUSD"] = new_list[3]
-                            base_dict["last_update"] = last_update
-                            # print(base_dict)
-
-                            # --> сохраним новый dict в json file
-                            with open("files/global_levels.json", "w") as write_file:
-                                json.dump(base_dict, write_file)
-                        elif value_last_data == last_update_global_levels:
-                            print(f"Дата обновления старая: {value_last_data}")
-
-            return status_code
-        elif response.status_code != 200:
-            print(f"Не смогли подключится к глобальному сервероу {self.ip_adress + name_table}")
-            print(f"response: {type(response)}, response= {response}")
-
-    def get(self, link: str, saved_file_name: str):
-        """метод для скачивания файла по указанной ссылке; saved_file_name - имя сохранямого файла с расширением """
-        # -- download file -- #
-        # url = 'http://192.168.10.160//panorama/2021/zp7.pdf'
-        url = link
-        if urllib.request.urlretrieve(url, "files/" + saved_file_name):
-            print("download okey !!! ")
-        elif not urllib.request.urlretrieve(url, "error.txt"):
-            print("download with problem !!! ")
-
-
 def find_near_levels(name_list: list, price: float):
     """ищем двух ближайщих соседей(ближайщих значений)
                   name_list - имя списка, содержащего массив значений, price (float)- цена возле которой ищем соседей"""
@@ -3092,64 +2867,6 @@ def find_protorgovok(name_df, delta: float):
     return df
 
 
-def find_steps(balance: float = None, steps: list = None, autolot_Hedge: float = None):
-    """метод для расчета начального лота для алгоритма martingail, и адаптирования сетки ордеров
-    исходя из баланса и обьема открытой hedge_позиции, чтобы сумма лотов убыточных наращенных
-     не превышала значения лота hedge; Заметка: если длина сетки т.е кол-во ордеров маленькое
-     то длина сетки расстояние между ордерами будет увеличено на коэфициент увеличения
-     Возврашает: нужную сетку ордеров список, сумму лотов итоговую для данной сетки ордеров"""
-    # steps = [0.015, 0.022, 0.028, 0.035, 0.042, 0.05, 0.068]  # сетка ордеров for Martin
-    begin_lot_martin = 0
-    b_massiv = np.array([])  # создаем пустой масив для каждого лота
-    selected_lots = np.array([])
-    # razdelitel = 100000.0   # от него пляшем - основной
-    razdelitel = 150000.0  # эксперимент
-    # balance = 2000
-
-    # new_steps = np.array([])  # для суммы лотов
-    if balance is None:
-        print("Баланс счета либо нулевой либо его не сушествует")
-    elif balance > 12000:
-        print("Ваш баланс счета слишком большой обратитесь к разработчику !!!")
-    elif 12000 > balance >= 1000:
-        begin_lot_martin = balance / razdelitel  # получим начальный лот
-        b_massiv = np.append(b_massiv, begin_lot_martin)  # add first element
-        selected_lots = np.append(selected_lots, round(begin_lot_martin, 2))  # add first element
-        new_steps = np.array([])  # для суммы лотов
-        print(f"begin_lot_martin: {begin_lot_martin}, autolot_Hedge= {autolot_Hedge}")
-
-        for i in range(1, len(steps)):
-            begin_lot_martin *= 1.5  # умножаем на коэф-иент
-            b_massiv = np.append(b_massiv, round(begin_lot_martin, 2))  # add new element to array
-            summa_b = b_massiv.sum()  # get summ for array
-            # print(f"b_massiv: {b_massiv}")
-
-            if summa_b <= autolot_Hedge:  # условие меньше авто_лота hedge
-                selected_lots = np.append(selected_lots, round(begin_lot_martin, 2))
-        print(f"selected_lots: {selected_lots}, summ_lots= {round(selected_lots.sum(), 2)}, "
-              f"кол-во эл-во всего: {len(selected_lots)}")
-
-        # --> отбор новой сетки исходя из кол-ва лотов (sum_lots)
-        selected_steps = steps[:len(selected_lots)]
-        # new_steps = np.append(new_steps, selected_steps)
-        print(f"new_steps: {selected_steps}")
-
-        # --> если сетка ордеров получилась маленькая, то увеличим каждый steps на некий коэф-нт
-        if len(selected_steps) <= 3 and len(selected_steps) > 0:
-            selected_steps_1 = list(map(lambda num: num * 2, selected_steps))  # <-- сделать в массив array
-            print(
-                f"selected_steps_1, расстояние между orders (steps) будет увеличено: new steps:{selected_steps_1},"
-                f"т.к кол-во эл-ов в сетке маленькое= {len(selected_steps)}")
-            return selected_steps_1, round(selected_lots.sum(), 2), selected_lots[0]
-
-        # --> если кол-во лотов более 3-шт, используем обычную сетку
-        elif len(selected_steps) > 3 and len(selected_steps) < 8:
-            print(f"для торговли будет выбрана обычная сетка ордеров: {selected_steps}")
-            return selected_steps, round(selected_lots.sum(), 2), selected_lots[0]
-    elif balance < 1000:
-        print("Ваш баланс слишком маленький для торговли данным алгоритмом Martin !!!")
-
-
 def analiz_dataframe(name_df, len_df: int, timeframe: str, symbol: str = None):
     """
     Метод для анализа заданного dataframe(временного ряда) для заданного финан.инструмента (symbol= aka "EURUSD"),
@@ -3220,55 +2937,49 @@ def analiz_dataframe(name_df, len_df: int, timeframe: str, symbol: str = None):
     # plt.savefig('files/delete.jpeg', bbox_inches='tight')
 
 
-def get_history_price(symbol: str, count_bars: int):
+def get_history_price(symbol: str, count_bars: int, filename_path: str, timeframe: str, day: int, month: int, year:int):
     """получаем исторические данные временного ряда для выбранного валютной пары
     и кол-во баров для выбранного timeframe"""
     from datetime import datetime
     import MetaTrader5 as mt5
+    import pytz
     pd.set_option('display.max_columns', 500)  # сколько столбцов показываем
     pd.set_option('display.width', 1500)  # макс. ширина таблицы для показа
     # импортируем модуль pytz для работы с таймзоной
-    import pytz
 
     # установим подключение к терминалу MetaTrader 5
     if not mt5.initialize():
-        print("initialize() failed, error code =", mt5.last_error())
+        logger.info(f"initialize() failed, error code = {mt5.last_error()}")
         quit()
 
     # установим таймзону в UTC
     timezone = pytz.timezone("Etc/UTC")
     # создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
-    utc_from = datetime(2022, 4, 25, tzinfo=timezone)
+    utc_from = datetime(year, month, day, tzinfo=timezone)
+    # logger.info(f"{utc_from=}, {type(utc_from)}")
 
     # выбор timeframe
-    # if timeframe == "D1" or "d1":
-    #     rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_D1, utc_from, count_bars)
-    # elif timeframe == "H4" or "h4":
-    #     rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
-    # elif timeframe == "H1" or "h1":
-    #     rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_from, count_bars)
-    # elif timeframe == "M15" or "m15":
-    #     rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_M15, utc_from, count_bars)
+    if timeframe in ("D1", 'd1'):
+        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_D1, utc_from, count_bars)
+    elif timeframe in ("H4", "h4"):
+        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
+    elif timeframe in ("H1", "h1"):
+        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_from, count_bars)
 
     # получим 10 баров с EURUSD H4 начиная с 01.10.2020 в таймзоне UTC
-    rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
+    # rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
     # завершим подключение к терминалу MetaTrader 5
     mt5.shutdown()
-    # выведем каждый элемент полученных данных на новой строке
-    print("Выведем полученные данные как есть")
-    for rate in rates:
-        print(rate)
-
     # создадим из полученных данных DataFrame
     rates_frame = pd.DataFrame(rates)
     # сконвертируем время в виде секунд в формат datetime
     rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-    rates_frame.to_csv("rates_frame_eurusd_h4.csv", sep='\t', encoding='utf-8')
-
-    # выведем данные
-    print("\nВыведем датафрейм с данными")
-    print(rates_frame)
-    return rates_frame
+    rates_frame.to_csv(filename_path + "//dataframes//rates_frame_eurusd_" + timeframe.upper() + ".csv", sep='\t', encoding='utf-8')
+    # logger.info(f"\nДатафрейм с данными по {symbol}: \n {rates_frame}")
+    if rates_frame.empty:
+        return None
+    else:
+        return rates_frame
 
 
 def check_expire_date(url: str, account_numer: str):
@@ -3348,133 +3059,3 @@ def read_json_file(filename: str):
 
 # ----------------------------------------------
 
-
-# cascade_orders(lot= 0.01)
-
-# -- > Экземпляр от класса Global server < -- -- -- -- -- -- -- --
-
-# test_server = Global_Server(ip_adress="http://80.85.158.162/", port=80)
-
-# list_path_of_algorithms = ["files/hedge_martin.json", "files/trade_extremum.json", "files/global_levels.json"]
-# x = test_server.connect_and_save(name_table="table", list_path=list_path_of_algorithms)      # connect and save to json files
-
-# test_server.get("http://80.85.158.162/hedge.json", saved_file_name="hedge.json")
-
-
-# -- >> Создаем экземпляр Terminal от класса MetaTrader  << -- -- -- -- -- -- -- -- -- -- --
-
-
-# Terminal = Meta_Trader(4999257062, "wosv1jtj", "MetaQuotes-Demo")    # проверка на демо всех методов
-# Terminal = Meta_Trader(51163159, "7junyssu", "Alpari-MT5-Demo")    # проверка на демо всех методов
-
-# Terminal.kovach_change_sltp(symbol="EURUSD", magic_number=114, stop_loss=0)
-
-# Terminal.new_trade_action_sltp(symbol="EURUSD", magic_number=114, order_type=0, stop_loss=0, position_ticket=1)
-# Terminal.kovach_open_deal(symbol="EURUSD", cascade=0, limit_order=1, open_price=1.0804, percent_risk=1,
-# stop_loss=1.07155, stop_order=0, take_profit=1.11341, magic_number=221)
-# Terminal.open_sell_limit_new(price=1.12, magic_number=221, take_profit=1000, symbol="EURUSD", stop_loss=300, 
-# lot=0.16, cascade=1)
-# Terminal.open_sell_stop_new(price=1.08, magic_number=221, take_profit=1000, symbol="EURUSD", stop_loss=300, 
-#                             lot=0.16, cascade=1)
-
-# tickets_list, last_price = Terminal.pending_orders_new(magic_number=114, type_order=3, symbol="EURUSD")  # -- >
-# logger.debug(f"{tickets_list=}")
-# составим список символов
-# установим подключение к терминалу MetaTrader 5
-
-
-# Terminal.connect()  # к обьекту Terminal применили метод connect
-# buy_tickets, sell_tickets = Terminal.get_tickets(symbol="all", magic_number="all")
-# print(f"{buy_tickets=}, {sell_tickets=}")
-# for ticket in buy_tickets:
-#     Terminal.Change_SLTP(symbol="EURUSD", magic_number=221, order_type=0, stop_loss=1.1135, take_profit=1.1715,
-#                              position_ticket=ticket)
-
-
-# Terminal.open_trade_sell(symbol="EURUSD", edit_lots=0.01, stop_loss=3000, take_profit=2000, magic=221)
-
-# df = get_history_price(symbol="EURUSD", count_bars=250)
-# bfind_protorgovok(name_df=df, delta= 0.0005)
-# df_new, low, high = Terminal.copy_rates_from_dates(symbol="EURUSD", timeframe="h1", count_bars=110)
-# df_new, low, high = Terminal.copy_rates_from_new(symbol="EURUSD", timeframe="D1", count_bars=44)
-
-# analiz_dataframe(name_df=df_new, len_df=10, symbol="EURUSD", timeframe="D1")
-
-# Terminal.open_sell_stop_new(price=1.17524, magic_number=221, take_profit=1000, symbol="EURUSD", stop_loss=300, lot=0.16, cascade=True)
-
-# Terminal.open_buy_limit_new(price=1.17669, magic_number=221, take_profit=1000, symbol="EURUSD", stop_loss=300, lot=0.17, cascade=True)
-
-
-# x = Terminal.find_last_pending_orders(magic=221, type_order=5, symbol="EURUSD")
-
-# Terminal.open_sell_stop(price=1.1735, magic_number=221, take_profit=500, symbol="EURUSD", stop_loss=300, lot= 0.16)
-# Terminal.open_buy_stop(price=1.1853, magic_number=221, take_profit=500, symbol="EURUSD", stop_loss=300, lot= 0.17)
-
-# x, y, z = Terminal.avg_price_new(symbol="EURUSD", order_type=1, magic_number=911)
-# print(x , y, z)
-# Terminal.find_last_lots(order_type=0, symbol="EURUSD", magic_number=221)
-# Terminal.get_atr_symbol(symbol="EURUSD", count=14)
-# len_loss_deals, summ_loss = Terminal.history_loss_deals(symbol="all", magic_number=101, days=1)
-# print(len_loss_deals, summ_loss)
-# x = Terminal.find_open_price(order_type=1, symbol="EURUSD", magic_number=101)       
-# print(x)
-# df = Terminal.copy_rates_from(symbol="EURUSD", count_bars=40)
-# print(df)
-# balance, equity, margin_level, currency = Terminal.money_management()
-
-# Terminal.find_sma_prices(symbol="EURUSD", timeframe="h4", counts_bars=22)
-# stop_loss_usd, lot, symbol, pips = Terminal.find_lot_management(symbol="EURUSD", pips=350, percent=0.5)
-# print(f"lot: {lot}")
-
-# Terminal.history_deals(symbol="AUDUSD", magic_number=101)
-# df, profit_loss = Terminal.history_all_deals(symbol="AUDUSD", magic_number=101, days=3)  
-# print(df, profit_loss)
-
-# Terminal.remove_open_position(symbol="EURUSD", magic_number=114000)
-# Terminal.open_trade_buy("EURUSD", 0.04, "ORDER_TYPE_BUY", stop_loss=300, take_profit=500)
-
-# Terminal.remove_open_position(symbol="EURUSD", magic_number=331)  #   удаляем открытые сделки
-# df_robot_hedge, BuyCount_hedge, SellCount_hedge, CountTrades_hedge = Terminal.check_robots_orders(magic_number=441,
-#                                                                                   symbol="EURUSD")  # new
-
-# Terminal.find_last_order(symbol="EURUSD", magic_number=441)
-# balance, equity, margin_level, currency = Terminal.money_management()
-
-# Terminal.TRADE_ACTION_SLTP_NEW(symbol="EURUSD", magic_number=11400, position_ticket=81221339, stop_loss=1.21001,
-#                                take_profit=700, order_type=1)
-# Terminal.remove_open_position(symbol="EURUSD", magic_number=114000)         #  удаление ордеров
-
-# tick = Terminal.begin_martin_algorithm()
-# Terminal.open_buy_limit(symbol="EURUSD", lot=0.03, price=1.2053, stop_loss=50, take_profit=750, magic_number=101)
-# Terminal.open_sell_limit(symbol="AUDUSD", lot=0.04, price=0.7744, stop_loss=30, take_profit=750, magic_number=101)
-
-
-# open_price, lot_order, type_order, stop_loss, take_profit = Terminal.check_param_order(symbol="EURUSD", magic_number=441)
-# df_robot, BuyCount, SellCount, CountTrades = Terminal.check_robots_orders(magic_number=221, symbol="EURUSD")
-
-# df_robot, tickets_Buy, tickets_Sell, len_df = Terminal.pending_orders(symbol="EURUSD", magic_number=221)
-
-
-# Terminal.remove_pending_orders(symbol="EURUSD", magic_number=441, order_ticket=80575130)
-
-# Terminal.account_info()
-# Terminal.check_open_orders()
-# Terminal.pending_orders()
-
-# Terminal.get_tick(symbol="EURUSD")
-# Terminal.find_last_price(order_type=1)
-
-# avg_price, tickets_Buy, tickets_Sell = Terminal.avg_price(order_type=0)
-
-# -- для TRADE_ACTION_SLTP
-# avg_price, tickets_Buy, tickets_Sell = Terminal.avg_price(order_type=0)
-# for ticket in tickets_Sell:          # блок изменения TP у каждого ордера
-#     Terminal.TRADE_ACTION_SLTP("EURUSD", ticket, avg_price, order_type=0)
-# -- КОНЕЦ -- #
-
-# Terminal.open_trade_buy("EURUSD", 0.01, "ORDER_TYPE_BUY", stop_loss=300, take_profit=500)
-# Terminal.open_trade_sell("EURUSD", 0.03, "ORDER_TYPE_SELL", stop_loss=300, take_profit=500)
-
-
-# Terminal = Meta_Trader(50716168, "2lbbhzwa", "Alpari-MT5-Demo")
-# Terminal.df_martin_position()

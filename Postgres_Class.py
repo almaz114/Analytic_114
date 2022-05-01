@@ -50,32 +50,13 @@ def info_database(database: str, user: str, password: str, host: str, port: str)
 
     except (Exception, Error) as error:
         logger.error(f"Ошибка при работе с PostgreSQL", {error})
+        return False
     finally:
         if connection:
             cursor.close()
             connection.close()
-            print("Соединение с PostgreSQL закрыто")
-
-
-def test_db(database: str, user: str, password: str, host: str, port: str):
-    # Подключение к существующей базе данных
-    connection = psycopg2.connect(user=user,
-                                  # пароль, который указали при установке PostgreSQL
-                                  password=password,
-                                  host=host,
-                                  port=port,
-                                  database=database)
-
-    # Курсор для выполнения операций с базой данных
-    cursor = connection.cursor()
-    # Распечатать сведения о PostgreSQL
-    print("Информация о сервере PostgreSQL")
-    print(connection.get_dsn_parameters(), "\n")
-
-    if connection:
-        cursor.close()
-        connection.close()
-        print("Соединение с PostgreSQL закрыто")
+            logger.info(f"Соединение с PostgreSQL закрыто")
+            return True
 
 
 def save_zayvka_to_db(database: str, user: str, password: str, host: str, port: str, dict_name: dict):

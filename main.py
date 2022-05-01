@@ -21,6 +21,7 @@ import os.path
 import re
 import sys
 from datetime import datetime
+import time
 from distutils.util import strtobool
 import numpy as np
 import pandas as pd
@@ -37,13 +38,13 @@ from rich.console import Console
 from rich.table import Table
 
 # I M P O R T  C L A S S_M E T A_T R A D E R  A S  C L A S S_MT5
-from Class_Meta_Trader import Meta_Trader  # импорт класса работы с Meta Trader 5
+# from Class_Meta_Trader import Meta_Trader  # импорт класса работы с Meta Trader 5
 from Class_Meta_Trader import get_data_from_url  # для получения данных из Kovach signals
 from Class_Meta_Trader import read_json_file  # для чтения json файлов
+from Class_Meta_Trader import get_history_price  # получаем данные из рынка
 
 # import class for workinf with database (Postgre)
 from Postgres_Class import info_database
-from Postgres_Class import test_db
 
 # -- notification params --
 params = {"xxx": 123}
@@ -56,7 +57,7 @@ base_dict = read_json_file(filename="config_files/settings.json")  # read global
 database_dict = read_json_file(filename="config_files//settings_database.json")  # get data server for kovach
 telegram_dict = read_json_file(filename="config_files/telegram_bot.json")
 
-base_dir = base_dict['Base_dir']   # ||| Главная папка проекта |||
+base_dir = base_dict['Base_dir']  # ||| Главная папка проекта |||
 
 # -- > логирование ошибок/нужной информации в определенные файлы < -- #
 logger.add(base_dir + "logs//errors.log", format="{time} {level} {message}", rotation="10:00", retention="4 days",
@@ -69,12 +70,11 @@ logger.add(base_dir + "logs//info_warning.log", format="{time} {level} {message}
 # -- обьявление переменных -- #
 symbols = ["EURUSD", "USDCAD", "EURGBP", "NZDUSD", "AUDUSD", "GBPUSD"]  # список валютных пар
 
-
 # dict_a = list_a[0]  # словарь со значениями Login/Password/Server
-login, password, server = account_dict["Login"], account_dict["Password"], account_dict["Server"]  # get data
+# login, password, server = account_dict["Login"], account_dict["Password"], account_dict["Server"]  # get data
 
 # -- > обьявим обьект для работы с классом Class_metatrader <--
-Terminal = Meta_Trader(login, password, server)
+# Terminal = Meta_Trader(login, password, server)
 
 # -- > переменные для работы с БД Postgre_Sql
 database, user_name_db = database_dict["database"], database_dict['user_name_db']
@@ -98,15 +98,26 @@ version_main = 'Analytic_Center 1.1'
 
 # ||| Check connect to MT5
 # установим подключение к терминалу MetaTrader 5
-if not mt5.initialize():
-    logger.error(f"initialize() failed, error code = {mt5.last_error()}")
-    connection_mt5_status = False
-    quit()
-else:
-    connection_mt5_status = True
+def test():
+    # while True:
+    try:
+        if not mt5.initialize():
+            logger.error(f"\ninitialize() failed, error code = {mt5.last_error()}")
+            logger.info("wait some time because error !!!")
+            time.sleep(90)
+            connection_mt5_status = False
+            quit()
+        else:
+            connection_mt5_status = True
+            return connection_mt5_status
+    finally:
+        test()
+
+
+connection_mt5_status = test()
 
 # ||| Check connect to Data_Base (Postgre_SQL)
-
+status_db = info_database(database=database, user=user_name_db, password=password, host=host, port=port)
 
 # --- set rich table
 table_1 = Table(title=version_main)
@@ -119,25 +130,51 @@ table_1.add_row("Состояние аналитического центра", 
 table_1.add_row("Рабочая папка проекта", base_dir, "xx")
 table_1.add_row("Текущий день недели", str(current_day), "xx")
 table_1.add_row("Connection_mt5_status", str(connection_mt5_status), "xx")
+table_1.add_row("Connect_DataBase_status", str(status_db), "xx")
 os.system('cls')
 console = Console()
 console.print(table_1)
 
-
-# установим таймзону в UTC
-timezone = pytz.timezone("Etc/UTC")
-# создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
-utc_from = datetime(2022, 4, 28, tzinfo=timezone)
-# получим 10 баров с EURUSD H4 начиная с 01.10.2020 в таймзоне UTC
-rates = mt5.copy_rates_from("EURUSD", mt5.TIMEFRAME_H4, utc_from, 4)
-# logger.info(f"\n{rates}")
-# создадим из полученных данных DataFrame
-rates_frame = pd.DataFrame(rates)
-# logger.info(f"{rates_frame}")
-
-# завершим подключение к терминалу MetaTrader 5
-mt5.shutdown()
+data_frame = get_history_price(symbol="EURUSD", count_bars=90, filename_path=base_dir, timeframe="d1", day=21, month=3,
+                               year=2021)
 
 
-# info_database(database=database, user=user_name_db, password=password, host=host, port=port)
-test_db(database=database, user=user_name_db, password=password, host=host, port=port)
+#  О С Н О В Н О Й  К О Д  П Р О Г Р А М М Ы (запуск асинхронного цикла функций по расписанию )
+
+
+async def async_func():
+    print('Begin 1 ...')
+    # os.system('cls')
+    await asyncio.sleep(1)
+    print('... End 1!')
+
+
+async def async_func_2():
+    print('Begin 2 ...')
+    await asyncio.sleep(1)
+    print('... End 2!')
+
+
+async def main():
+    while True:
+        task = asyncio.create_task(async_func())
+        logger.info(f"{datetime.now()}")
+        await asyncio.sleep(60)
+        print(datetime.now())
+        await task
+
+        date = datetime.today()
+        hour_time = date.strftime('%H')
+        if hour_time == "18":
+            task_2 = asyncio.create_task(async_func_2())
+            await task_2
+
+
+if __name__ == "__main__":
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(main())
+    except ValueError:
+        logger.info(f"error")
+        # continue
+        # break
