@@ -98,8 +98,7 @@ version_main = 'Analytic_Center 1.1'
 
 # ||| Check connect to MT5
 # установим подключение к терминалу MetaTrader 5
-def test():
-    # while True:
+def test_mt5_connection():
     try:
         if not mt5.initialize():
             logger.error(f"\ninitialize() failed, error code = {mt5.last_error()}")
@@ -110,11 +109,11 @@ def test():
         else:
             connection_mt5_status = True
             return connection_mt5_status
-    finally:
-        test()
+    except:
+        test_mt5_connection()
 
 
-connection_mt5_status = test()
+connection_mt5_status = test_mt5_connection()
 
 # ||| Check connect to Data_Base (Postgre_SQL)
 status_db = info_database(database=database, user=user_name_db, password=password, host=host, port=port)
@@ -165,7 +164,7 @@ async def main():
 
         date = datetime.today()
         hour_time = date.strftime('%H')
-        if hour_time == "18":
+        if hour_time == "17":
             task_2 = asyncio.create_task(async_func_2())
             await task_2
 
@@ -176,5 +175,3 @@ if __name__ == "__main__":
         loop.run_until_complete(main())
     except ValueError:
         logger.info(f"error")
-        # continue
-        # break
