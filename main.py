@@ -20,6 +20,7 @@ import os
 import os.path
 import re
 import sys
+from typing import Union
 from datetime import datetime
 import time
 from distutils.util import strtobool
@@ -57,7 +58,8 @@ base_dict = read_json_file(filename="config_files/settings.json")  # read global
 database_dict = read_json_file(filename="config_files//settings_database.json")  # get data server for kovach
 telegram_dict = read_json_file(filename="config_files/telegram_bot.json")
 
-base_dir = base_dict['Base_dir']  # ||| Главная папка проекта |||
+base_dir = base_dict['Base_dir']    # ||| Главная папка проекта |||
+symbols = base_dict['symbols']      # список валютных пар по ко-м работаем
 
 # -- > логирование ошибок/нужной информации в определенные файлы < -- #
 logger.add(base_dir + "logs//errors.log", format="{time} {level} {message}", rotation="10:00", retention="4 days",
@@ -68,7 +70,7 @@ logger.add(base_dir + "logs//info_warning.log", format="{time} {level} {message}
            level="WARNING", compression="zip", enqueue=True)
 
 # -- обьявление переменных -- #
-symbols = ["EURUSD", "USDCAD", "EURGBP", "NZDUSD", "AUDUSD", "GBPUSD"]  # список валютных пар
+# symbols = ["EURUSD", "USDCAD", "EURGBP", "NZDUSD", "AUDUSD", "GBPUSD"]  # список валютных пар
 
 # dict_a = list_a[0]  # словарь со значениями Login/Password/Server
 # login, password, server = account_dict["Login"], account_dict["Password"], account_dict["Server"]  # get data
@@ -84,7 +86,7 @@ password, host, port = database_dict['password'], database_dict['host'], databas
 token = telegram_dict["Token"]
 chat_id = telegram_dict["Chat_id"]
 
-current_day = datetime.today().isoweekday()  # текущий день недели (№ дня недели)
+cur_day = datetime.today().isoweekday()  # текущий день недели (№ дня недели)
 working_days = [1, 2, 3, 4, 5]
 
 # -- Версия программы
@@ -127,15 +129,16 @@ table_1.add_column("value", style="magenta")
 table_1.add_column("datetime", justify="center", style="green")
 table_1.add_row("Состояние аналитического центра", "Включено", str(today.strftime("%Y-%m-%d-%H.%M.%S")))
 table_1.add_row("Рабочая папка проекта", base_dir, "xx")
-table_1.add_row("Текущий день недели", str(current_day), "xx")
+table_1.add_row("Текущий день недели", str(cur_day), "xx")
 table_1.add_row("Connection_mt5_status", str(connection_mt5_status), "xx")
 table_1.add_row("Connect_DataBase_status", str(status_db), "xx")
 os.system('cls')
 console = Console()
 console.print(table_1)
+time.sleep(5)
 
-data_frame = get_history_price(symbol="EURUSD", count_bars=90, filename_path=base_dir, timeframe="d1", day=21, month=3,
-                               year=2021)
+# data_frame = get_history_price(symbol="EURUSD", count_bars=90, filename_path=base_dir, timeframe="d1", day=21, month=3,
+#                                year=2021)
 
 
 #  О С Н О В Н О Й  К О Д  П Р О Г Р А М М Ы (запуск асинхронного цикла функций по расписанию )
@@ -143,7 +146,6 @@ data_frame = get_history_price(symbol="EURUSD", count_bars=90, filename_path=bas
 
 async def async_func():
     print('Begin 1 ...')
-    # os.system('cls')
     await asyncio.sleep(1)
     print('... End 1!')
 
@@ -154,19 +156,47 @@ async def async_func_2():
     print('... End 2!')
 
 
+async def get_save_history_prices(symbol: Union[str, list], count_bars: int, timeframe: str, day: int, month: int, year: int):
+    """
+    получение и сохранение dataframe/числовых рядов в .csv
+    """
+    await asyncio.sleep(1)
+    if isinstance(symbol, list) and len(symbol):
+        for i, sym in enumerate(symbol):
+            data_frame = get_history_price(symbol=sym, count_bars=count_bars, filename_path=base_dir,
+                                           timeframe=timeframe, day=day, month=month, year=year)
+            await asyncio.sleep(6)
+
+
 async def main():
     while True:
-        task = asyncio.create_task(async_func())
-        logger.info(f"{datetime.now()}")
-        await asyncio.sleep(60)
-        print(datetime.now())
-        await task
-
+        day_week = datetime.today().isoweekday()  # текущий день недели (№ дня недели)
         date = datetime.today()
-        hour_time = date.strftime('%H')
-        if hour_time == "17":
-            task_2 = asyncio.create_task(async_func_2())
-            await task_2
+        current_year = date.year
+        current_month = date.month
+        current_day = date.day
+        current_hour = date.hour
+        current_minute = date.minute
+        # logger.info(f"{current_year=}")
+
+        if day_week in working_days:
+            # task = asyncio.create_task(async_func())
+            os.system('cls')
+            logger.info(f"{datetime.now()}")
+            await asyncio.sleep(60)
+            # await task
+
+            if current_hour == 9 and current_minute == 1:
+                os.system('cls')
+                logger.info(f"\nNow begin get dataframe (dataframe= Day) from Mt5 and save to .csv")
+                task_2 = asyncio.create_task(get_save_history_prices(symbol=symbols, count_bars=90, timeframe='d1', day=current_day, month=current_month, year=current_year))
+                await task_2
+
+            if current_hour in (4, 8, 12, 16, 20, 0) and current_minute == 5:
+                os.system('cls')
+                logger.info(f"\nNow begin get dataframe (dataframe= H4) from Mt5 and save to .csv")
+                task_3 = asyncio.create_task(get_save_history_prices(symbol=symbols, count_bars=250, timeframe='H4', day=current_day, month=current_month, year=current_year))
+                await task_3
 
 
 if __name__ == "__main__":

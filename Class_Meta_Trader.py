@@ -4,6 +4,7 @@ import datetime
 import itertools
 import json
 import os.path
+from typing import Union
 # import colorama
 # from colorama import Fore, Back, Style
 # colorama.init()
@@ -2937,7 +2938,7 @@ def analiz_dataframe(name_df, len_df: int, timeframe: str, symbol: str = None):
     # plt.savefig('files/delete.jpeg', bbox_inches='tight')
 
 
-def get_history_price(symbol: str, count_bars: int, filename_path: str, timeframe: str, day: int, month: int, year:int):
+def get_history_price(symbol: Union[str, list], count_bars: int, filename_path: str, timeframe: str, day: int, month: int, year:int):
     """получаем исторические данные временного ряда для выбранного валютной пары
     и кол-во баров для выбранного timeframe"""
     from datetime import datetime
@@ -2957,29 +2958,31 @@ def get_history_price(symbol: str, count_bars: int, filename_path: str, timefram
     # создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
     utc_from = datetime(year, month, day, tzinfo=timezone)
     # logger.info(f"{utc_from=}, {type(utc_from)}")
+    # logger.info(f"{symbol=}")
 
-    # выбор timeframe
-    if timeframe in ("D1", 'd1'):
-        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_D1, utc_from, count_bars)
-    elif timeframe in ("H4", "h4"):
-        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
-    elif timeframe in ("H1", "h1"):
-        rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_from, count_bars)
+    if isinstance(symbol, str):
+        # выбор timeframe
+        if timeframe in ("D1", 'd1'):
+            rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_D1, utc_from, count_bars)
+        elif timeframe in ("H4", "h4"):
+            rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
+        elif timeframe in ("H1", "h1"):
+            rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_from, count_bars)
 
-    # получим 10 баров с EURUSD H4 начиная с 01.10.2020 в таймзоне UTC
-    # rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
-    # завершим подключение к терминалу MetaTrader 5
-    mt5.shutdown()
-    # создадим из полученных данных DataFrame
-    rates_frame = pd.DataFrame(rates)
-    # сконвертируем время в виде секунд в формат datetime
-    rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-    rates_frame.to_csv(filename_path + "//dataframes//rates_frame_eurusd_" + timeframe.upper() + ".csv", sep='\t', encoding='utf-8')
-    # logger.info(f"\nДатафрейм с данными по {symbol}: \n {rates_frame}")
-    if rates_frame.empty:
-        return None
-    else:
-        return rates_frame
+        # получим 10 баров с EURUSD H4 начиная с 01.10.2020 в таймзоне UTC
+        # rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H4, utc_from, count_bars)
+        # завершим подключение к терминалу MetaTrader 5
+        mt5.shutdown()
+        # создадим из полученных данных DataFrame
+        rates_frame = pd.DataFrame(rates)
+        # сконвертируем время в виде секунд в формат datetime
+        rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+        rates_frame.to_csv(filename_path + "//dataframes//rates_frame_" + symbol.lower() + "_" + timeframe.upper() + ".csv", sep='\t', encoding='utf-8')
+        # logger.info(f"\nДатафрейм с данными по {symbol}: \n {rates_frame}")
+        if rates_frame.empty:
+            return None
+        else:
+            return rates_frame
 
 
 def check_expire_date(url: str, account_numer: str):
@@ -3001,7 +3004,7 @@ def check_expire_date(url: str, account_numer: str):
         if res is None:
             logger.error(f"account number not find: {account_numer}, because will exit program")
             sys.exit()
-            time.sleep(3)
+            time.sleep(.3)
             return res
         elif res:
             data_expire = res["expire_data"]
