@@ -186,13 +186,13 @@ async def main():
             await asyncio.sleep(60)
             # await task
 
-            if current_hour == 9 and current_minute == 1:
+            if current_hour == 4 and current_minute == 5:
                 os.system('cls')
                 logger.info(f"\nNow begin get dataframe (dataframe= Day) from Mt5 and save to .csv")
                 task_2 = asyncio.create_task(get_save_history_prices(symbol=symbols, count_bars=90, timeframe='d1', day=current_day, month=current_month, year=current_year))
                 await task_2
 
-            if current_hour in (4, 8, 12, 16, 20, 0) and current_minute == 5:
+            if current_hour in (4, 8, 12, 16, 20, 0) and current_minute == 15:
                 os.system('cls')
                 logger.info(f"\nNow begin get dataframe (dataframe= H4) from Mt5 and save to .csv")
                 task_3 = asyncio.create_task(get_save_history_prices(symbol=symbols, count_bars=250, timeframe='H4', day=current_day, month=current_month, year=current_year))

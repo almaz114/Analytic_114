@@ -3062,3 +3062,5 @@ def read_json_file(filename: str):
 
 # ----------------------------------------------
 
+data_frame = get_history_price(symbol="EURUSD", count_bars=90, filename_path="config_files//",
+                               timeframe="H4", day=13, month=5, year=2022)
